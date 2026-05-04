@@ -1,0 +1,48 @@
+name: 同步上游更新
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每6小时同步，可按需调整
+  workflow_dispatch:      # 支持手动触发同步
+
+# 强制Node.js 24，彻底消除弃用警告
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# 赋予工作流推送代码的权限
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取完整代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 拉取完整历史，避免合并错误
+
+      - name: 配置Git
+        run: |
+          git config --global user.name "Auto Sync"
+          git config --global user.email "sync@github.com"
+
+      - name: 同步上游代码
+        run: |
+          # ========== 仅需修改这一行！替换为原作者仓库地址 ==========
+          UPSTREAM_REPO="https://github.com/7Sageer/sublink-worker.git"
+          # ==========================================================
+          
+          # 添加上游（已存在则跳过，避免重复报错）
+          git remote add upstream $UPSTREAM_REPO || true
+          
+          # 拉取上游最新代码，清理过期分支
+          git fetch upstream --prune
+          
+          # 切换到你的主分支（main/master，二选一）
+          git checkout main
+          
+          # 合并上游更新（--no-edit 自动合并，无需手动编辑提交信息）
+          git merge upstream/main --allow-unrelated-histories --no-edit
+          
+          # 推送更新到你的fork仓库
+          git push origin main
